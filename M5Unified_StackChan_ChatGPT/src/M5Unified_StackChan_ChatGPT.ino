@@ -11,9 +11,24 @@
 
 #include <AudioOutput.h>
 #include <AudioFileSourceBuffer.h>
+#include <AudioGenerator.h>
+#define AUDIO_TYPE_WAV
+//#define AUDIO_TYPE_MP3
+#ifdef AUDIO_TYPE_WAV
+#include <AudioGeneratorWAV.h>
+#elif defined( AUDIO_TYPE_MP3 )
 #include <AudioGeneratorMP3.h>
-#include "AudioFileSourceVoiceTextStream.h"
+#endif
+
+//#define VOICETEXTTTS
+#define COQUITTS
+#ifdef VOICETEXTTTS
+#include "AudioFileSourceVoieTextStream.h"
+#elif defined( COQUITTS )
+#include "AudioFileSourceCoquiTTSStream.h"
+#endif
 #include "AudioOutputM5Speaker.h"
+
 #include <ServoEasing.hpp> // https://github.com/ArminJo/ServoEasing       
 
 #include <HTTPClient.h>
@@ -36,7 +51,10 @@ std::deque<String> chatHistory;
 #define OPENAI_APIKEY "SET YOUR OPENAI APIKEY"
 #define VOICETEXT_APIKEY "SET YOUR VOICETEXT APIKEY"
 
-#define USE_SERVO
+#define AUDIO_TYPE_WAV
+//#define AUDIO_TYPE_MP3
+
+//#define USE_SERVO
 #ifdef USE_SERVO
 #if defined(ARDUINO_M5STACK_Core2)
 //  #define SERVO_PIN_X 13  //Core2 PORT C
@@ -702,7 +720,7 @@ void handle_setting() {
 /// set M5Speaker virtual channel (0-7)
 //static constexpr uint8_t m5spk_virtual_channel = 0;
 static AudioOutputM5Speaker out(&M5.Speaker, m5spk_virtual_channel);
-AudioGeneratorMP3 *mp3;
+AudioGenerator *audio;
 AudioFileSourceVoiceTextStream *file = nullptr;
 AudioFileSourceBuffer *buff = nullptr;
 const int preallocateBufferSize = 50*1024;
@@ -823,9 +841,10 @@ void Servo_setup() {
 // char *tts_parms2 ="&emotion_level=2&emotion=happiness&format=mp3&speaker=takeru&volume=200&speed=100&pitch=130";
 // char *tts_parms3 ="&emotion_level=4&emotion=anger&format=mp3&speaker=bear&volume=200&speed=120&pitch=100";
 void VoiceText_tts(char *text,char *tts_parms) {
-    file = new AudioFileSourceVoiceTextStream( text, tts_parms);
+    file = new AudioFileSourceCoquiTTSStream(text, tts_parms);
     buff = new AudioFileSourceBuffer(file, preallocateBuffer, preallocateBufferSize);
-    mp3->begin(buff, &out);
+    Serial.printf("buff size = %d", buff->getSize());
+    audio->begin(buff, &out);
 }
 
 struct box_t
@@ -1107,7 +1126,12 @@ void setup()
   delay(3000);
 
   audioLogger = &Serial;
-  mp3 = new AudioGeneratorMP3();
+#ifdef AUDIO_TYPE_WAV  
+  audio = new AudioGeneratorWAV();
+#elif defined( AUDIO_TYPE_MP3 )
+  audio = new AudioGeneratorWMP3();
+#endif  
+
 //  mp3->RegisterStatusCB(StatusCallback, (void*)"mp3");
 
 //  Servo_setup();
@@ -1209,7 +1233,7 @@ void loop()
   {
     lastms1 = millis();
     random_time = 40000 + 1000 * random(30);
-    if (!mp3->isRunning() && speech_text=="" && speech_text_buffer == "") {
+    if (!audio->isRunning() && speech_text=="" && speech_text_buffer == "") {
       exec_chatGPT(random_words[random(18)]);
     }
   }
@@ -1230,7 +1254,7 @@ void loop()
     avatar.setExpression(Expression::Happy);
     VoiceText_tts((char*)tmp.c_str(), tts_parms2);
     avatar.setExpression(Expression::Neutral);
-    Serial.println("mp3 begin");
+    Serial.println("audio begin");
   }
 
   // if (Serial.available()) {
@@ -1267,7 +1291,7 @@ void loop()
     avatar.setExpression(Expression::Happy);
     VoiceText_tts(text1, tts_parms2);
     avatar.setExpression(Expression::Neutral);
-    Serial.println("mp3 begin");
+    Serial.println("audio begin");
   }
 
   if(speech_text != ""){
@@ -1299,16 +1323,16 @@ void loop()
     if(expressionIndx < 0) avatar.setExpression(Expression::Neutral);
   }
 
-  if (mp3->isRunning()) {
+  if (audio->isRunning()) {
     // if (millis()-lastms > 1000) {
     //   lastms = millis();
     //   Serial.printf("Running for %d ms...\n", lastms);
     //   Serial.flush();
     //  }
-    if (!mp3->loop()) {
-      mp3->stop();
+    if (!audio->loop()) {
+      audio->stop();
       if(file != nullptr){delete file; file = nullptr;}
-      Serial.println("mp3 stop");
+      Serial.println("audio stop");
 //      avatar.setExpression(Expression::Neutral);
       if(speech_text_buffer != ""){
         String sentence = speech_text_buffer;
