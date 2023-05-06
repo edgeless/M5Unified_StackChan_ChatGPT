@@ -19,7 +19,7 @@ WhisperRest::WhisperRest(String _rest_url, String _lang) {
     apiurl.concat("language=");
     apiurl.concat(lang);
     apiurl.concat('&');
-    apiurl.concat("encode=true");
+    apiurl.concat("encode=false");
     apiurl.concat('&');
     apiurl.concat("output=json");
 
@@ -63,7 +63,7 @@ int WhisperRest::MPOST(uint8_t * payload, size_t size)
     resthttp.addHeader("Content-Type", "multipart/form-data; boundary="+boundary);
 
     String part = "--" + boundary + "\r\n";
-    part += "Content-Disposition: form-data; audio_file=voice.wav;";
+    part += "Content-Disposition: form-data; name=\"audio_file\"; filename=\"voice.raw\"";
     part += "Content-Type: audio/wav\r\n\r\n";
     for (size_t i = 0; i < size; i++) {
       part += (char)payload[i];
