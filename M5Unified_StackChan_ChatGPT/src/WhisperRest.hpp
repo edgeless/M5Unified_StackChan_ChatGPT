@@ -5,37 +5,33 @@
 
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
-#include <driver/i2s.h>
+// #include <driver/i2s.h>
 
 #define JSON_DOCSIZE 512
-
-struct pcmPack {
-    uint8_t* packData;
-    uint32_t packsize;
-};
 
 class WhisperRest {
    private:
     String api_token_str;
+    String rest_url;
+    String lang;
     StaticJsonDocument<JSON_DOCSIZE> rest_json_doc;
-    char ascii2hex_buff[17] = "0123456789abcdef";
 
    public:
-    QueueHandle_t xQ_i2sSteam = NULL;
-
-   public:
-    WhisperRest();
+    WhisperRest(String rest_url, String lang);
     ~WhisperRest();
-    int gettoken(void);
-    int creattoken(void);
-    void settoken(String token_str);
 
-    int Pcm2String(uint8_t* pcm_buff, uint32_t pcm_lan, String dev_pid,
-                   String* results_str);
-    int String2Pcm(String str, int spd, int pit, int vol, int per,
-                   uint8_t* pcm_buff, size_t* len);
-    int String2Pcm(String str, int spd, int pit, int vol, int per);
-    String Str2UrlEncode(String str);
+    String Pcm2String(uint8_t* pcm_buff, uint32_t pcm_len);
+};
+
+
+/// @brief HTTP Client for POST using multipart/form-data
+class MHTTPClient : HTTPClient {
+  public:
+    int MPOST(uint8_t * payload, size_t size);
+    
+    bool begin(String url) { return HTTPClient::begin(url) };
+    String getString(void) { return HTTPClient::getString() };
+
 };
 
 #endif
