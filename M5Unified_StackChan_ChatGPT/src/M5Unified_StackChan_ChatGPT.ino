@@ -282,7 +282,7 @@ void handle_speech() {
   // 音声の発声
   ////////////////////////////////////////
   avatar.setExpression(expressions_table[expr]);
-  VoiceText_tts((char*)message.c_str(),tts_parms_table[parms_no]);
+  tts((char*)message.c_str(),tts_parms_table[parms_no]);
 //  avatar.setExpression(expressions_table[0]);
   server.send(200, "text/plain", String("OK"));
 }
@@ -845,7 +845,7 @@ void Servo_setup() {
 // char *tts_parms1 ="&emotion_level=2&emotion=happiness&format=mp3&speaker=hikari&volume=200&speed=120&pitch=130";
 // char *tts_parms2 ="&emotion_level=2&emotion=happiness&format=mp3&speaker=takeru&volume=200&speed=100&pitch=130";
 // char *tts_parms3 ="&emotion_level=4&emotion=anger&format=mp3&speaker=bear&volume=200&speed=120&pitch=100";
-void VoiceText_tts(char *text,char *tts_parms) {
+void tts(char *text,char *tts_parms) {
     file = new AudioFileSourceCoquiTTSStream(text, tts_parms);
     buff = new AudioFileSourceBuffer(file, preallocateBuffer, preallocateBufferSize);
     Serial.printf("buff size = %d", buff->getSize());
@@ -1236,10 +1236,10 @@ void getExpression(String &sentence, int &expressionIndx){
     }
 }
 
-String STT() {
+String stt() {
   // STT
   WhisperRest sttClient("192.168.2.52:9000", "ja");
-  return sttClient.Pcm2String(rec_data, recorded_size*2);
+  return sttClient.Pcm2String(rec_data, recorded_size);
 }
 
 void loop()
@@ -1267,13 +1267,13 @@ void loop()
 
     Serial.printf("rec data size: %d\n", recorded_size);
 
-    avatar.setExpression(Expression::Doubt);
+    avatar.setSpeechText("認識中..");
     
     // test echo
     // M5.Speaker.playRaw(rec_data, recorded_size, record_samplerate, false, 1, 0);
 
     // STT
-    String text = STT();
+    String text = stt();
 
     // reset buffer
     free(rec_data);
@@ -1317,7 +1317,7 @@ void loop()
     }
     random_speak = !random_speak;
     avatar.setExpression(Expression::Happy);
-    VoiceText_tts((char*)tmp.c_str(), tts_parms2);
+    tts((char*)tmp.c_str(), tts_parms2);
     avatar.setExpression(Expression::Neutral);
     Serial.println("audio begin");
   }
@@ -1327,7 +1327,7 @@ void loop()
   //   size_t len = Serial.readBytesUntil('\r', kstr, 256);
   //   kstr[len]=0;
   //   avatar.setExpression(Expression::Happy);
-  //   VoiceText_tts(kstr, tts_parms2);
+  //   tts(kstr, tts_parms2);
   //   avatar.setExpression(Expression::Neutral);
 	// }
 
@@ -1354,7 +1354,7 @@ void loop()
   {
     M5.Speaker.tone(1000, 100);
     avatar.setExpression(Expression::Happy);
-    VoiceText_tts(text1, tts_parms2);
+    tts(text1, tts_parms2);
     avatar.setExpression(Expression::Neutral);
     Serial.println("audio begin");
   }
@@ -1380,10 +1380,10 @@ void loop()
     getExpression(sentence, expressionIndx);
 //----------------
     if(expressionIndx < 0) avatar.setExpression(Expression::Happy);
-    if(expressionIndx < 0) VoiceText_tts((char*)sentence.c_str(), tts_parms_table[tts_parms_no]);
+    if(expressionIndx < 0) tts((char*)sentence.c_str(), tts_parms_table[tts_parms_no]);
     else {
       String tmp = emotion_parms[expressionIndx]+tts_parms[tts_parms_no];
-      VoiceText_tts((char*)sentence.c_str(), (char*)tmp.c_str());
+      tts((char*)sentence.c_str(), (char*)tmp.c_str());
     }
     if(expressionIndx < 0) avatar.setExpression(Expression::Neutral);
   }
@@ -1414,10 +1414,10 @@ void loop()
         getExpression(sentence, expressionIndx);
 //----------------
         if(expressionIndx < 0) avatar.setExpression(Expression::Happy);
-        if(expressionIndx < 0)VoiceText_tts((char*)sentence.c_str(), tts_parms_table[tts_parms_no]);
+        if(expressionIndx < 0)tts((char*)sentence.c_str(), tts_parms_table[tts_parms_no]);
         else { 
           String tmp = emotion_parms[expressionIndx]+tts_parms[tts_parms_no];
-          VoiceText_tts((char*)sentence.c_str(), (char*)tmp.c_str());
+          tts((char*)sentence.c_str(), (char*)tmp.c_str());
         }
         if(expressionIndx < 0) avatar.setExpression(Expression::Neutral);
       } else {

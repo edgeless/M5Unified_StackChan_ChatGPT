@@ -29,17 +29,18 @@ WhisperRest::WhisperRest(String _rest_url, String _lang) {
 }
 
 WhisperRest::~WhisperRest() {
+    resthttp.end();
 }
 
 String WhisperRest::Pcm2String(int16_t* pcm_buff, uint32_t pcm_len) {
 
     uint64_t time = micros();
     
-    int ret = MPOST((uint8_t*)pcm_buff, pcm_len);
+    int ret = MPOST((uint8_t*)pcm_buff, pcm_len * 2);
 
-    Serial.printf("STT Result: %d,  Time %dms\n", ret, (micros() - time) / 1000);
+    Serial.printf("STT Result: %d,  Time %dms\n", ret, (micros() - time) / 10000);
     
-    if (ret > 0) {
+    if (ret == 200) {
         String response = resthttp.getString();
         Serial.println(response);
         deserializeJson(rest_json_doc, response);
@@ -58,14 +59,12 @@ String WhisperRest::Pcm2String(int16_t* pcm_buff, uint32_t pcm_len) {
 /// @return 
 int WhisperRest::MPOST(uint8_t * payload, size_t size) 
 {
-    String boundary = "----";
-    boundary += millis();
-    boundary += random(0xFFFF, 0xFFFFFFF);
+    String boundary = "----Boundary97BNFLxCpeVzEZwP";
 
     resthttp.addHeader("Content-Type", "multipart/form-data; boundary="+boundary);
 
     String part = "--" + boundary + "\r\n";
-    part += "Content-Disposition: form-data; name=\"audio_file\"; filename=\"voice.raw\"";
+    part += "Content-Disposition: form-data; name=\"audio_file\"; filename=\"voice.raw\"\r\n";
     part += "Content-Type: audio/wav\r\n\r\n";
     for (size_t i = 0; i < size; i++) {
       part += (char)payload[i];
