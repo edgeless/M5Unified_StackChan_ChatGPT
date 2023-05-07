@@ -24,24 +24,26 @@ WhisperRest::WhisperRest(String _rest_url, String _lang) {
     apiurl.concat("output=json");
 
     int res = resthttp.begin(apiurl);
-    Serial.printf("resthttp.begin(%s): %d", apiurl.c_str(), res);
+    resthttp.setTimeout(10000);
+    Serial.printf("resthttp.begin(%s): %d\n", apiurl.c_str(), res);
 }
 
 WhisperRest::~WhisperRest() {
 }
 
-String WhisperRest::Pcm2String(uint8_t* pcm_buff, uint32_t pcm_len) {
+String WhisperRest::Pcm2String(int16_t* pcm_buff, uint32_t pcm_len) {
 
     uint64_t time = micros();
     
     int ret = MPOST((uint8_t*)pcm_buff, pcm_len);
 
-    Serial.printf("STT Result: %d,  Time %dms\r\n", ret, (micros() - time) / 1000);
+    Serial.printf("STT Result: %d,  Time %dms\n", ret, (micros() - time) / 1000);
     
     if (ret > 0) {
         String response = resthttp.getString();
         Serial.println(response);
         deserializeJson(rest_json_doc, response);
+        Serial.println("text: " + rest_json_doc["text"].as<String>());
     } else {
         for (int i = 0; i<resthttp.headers(); i++)
             Serial.println(resthttp.header(i));
@@ -51,7 +53,7 @@ String WhisperRest::Pcm2String(uint8_t* pcm_buff, uint32_t pcm_len) {
 }
 
 /// @brief multipart POST
-/// @param payload 
+/// @param payload
 /// @param size 
 /// @return 
 int WhisperRest::MPOST(uint8_t * payload, size_t size) 

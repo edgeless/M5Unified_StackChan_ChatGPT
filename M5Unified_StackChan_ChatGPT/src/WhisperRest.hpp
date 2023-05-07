@@ -26,7 +26,7 @@ class WhisperRest {
     WhisperRest(const WhisperRest&) = delete;
     WhisperRest& operator=(const WhisperRest&) = delete;
 
-    String Pcm2String(uint8_t* pcm_buff, uint32_t pcm_len);
+    String Pcm2String(int16_t* pcm_buff, uint32_t pcm_len);
 };
 
 #endif

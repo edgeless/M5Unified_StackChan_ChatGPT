@@ -9,6 +9,14 @@
 #include <faces/DogFace.h>
 #endif
 
+// for microphone
+static constexpr const size_t record_samplerate = 16000;
+static constexpr const size_t record_seconds = 30;
+static constexpr const size_t record_size = record_samplerate * record_seconds;
+static size_t recorded_size = 0;
+static int16_t *rec_data;
+#include "WhisperRest.hpp"
+
 #include <AudioOutput.h>
 #include <AudioFileSourceBuffer.h>
 #include <AudioGenerator.h>
@@ -368,7 +376,14 @@ void handle_chat() {
   tts_parms_no = 1;
   String text = server.arg("text");
   String voice = server.arg("voice");
-  if(voice != "") {
+  response = chatInternal(text, voice);
+  server.send(200, "text/html", String(HEAD)+String("<body>")+response+String("</body>"));
+}
+
+String chatInternal(String text, String voice) {
+  static String response = "";
+  tts_parms_no = 1;
+  if (voice != "") {
     tts_parms_no = voice.toInt();
     if(tts_parms_no < 0) tts_parms_no = 0;
     if(tts_parms_no > 4) tts_parms_no = 4;
@@ -407,20 +422,9 @@ void handle_chat() {
   } else {
     response = "busy";
   }
-  // Serial.printf("chatHistory.max_size %d \n",chatHistory.max_size());
-  // Serial.printf("chatHistory.size %d \n",chatHistory.size());
-  // for (int i = 0; i < chatHistory.size(); i++)
-  // {
-  //   Serial.print(i);
-  //   Serial.println("= "+chatHistory[i]);
-  // }
-  serializeJsonPretty(chat_doc, json_string);
-  Serial.println("====================");
-  Serial.println(json_string);
-  Serial.println("====================");
-  server.send(200, "text/html", String(HEAD)+String("<body>")+response+String("</body>"));
-}
 
+  return response;
+}
 
 String Role_JSON = "";
 void exec_chatGPT(String text) {
@@ -529,6 +533,7 @@ void handle_role_set() {
   server.send(200, "text/html", html);
 //  server.send(200, "text/plain", String("OK"));
 };
+
 void handle_role_set2() {
   // POST以外は拒否
   if (server.method() != HTTP_POST) {
@@ -1153,6 +1158,13 @@ void setup()
   avatar.setSpeechFont(&fonts::efontJA_16);
 //  M5.Speaker.setVolume(200);
   box_servo.setupBox(80, 120, 80, 80);
+
+  // init microphone buffer
+  rec_data = (typeof(rec_data))heap_caps_malloc(record_size * sizeof(int16_t), MALLOC_CAP_8BIT);
+  memset(rec_data, 0 , record_size * sizeof(int16_t));
+  m5::mic_config_t mcfg = M5.Mic.config();
+  mcfg.noise_filter_level = 16;
+  M5.Mic.config(mcfg);
 }
 
 String keywords[] = {"(Neutral)", "(Happy)", "(Sleepy)", "(Doubt)", "(Sad)", "(Angry)"};
@@ -1224,10 +1236,63 @@ void getExpression(String &sentence, int &expressionIndx){
     }
 }
 
+String STT() {
+  // STT
+  WhisperRest sttClient("192.168.2.52:9000", "ja");
+  return sttClient.Pcm2String(rec_data, recorded_size*2);
+}
+
 void loop()
 {
   static int lastms = 0;
   static int lastms1 = 0;
+
+  // BtnBが押されている間録音する
+  if (M5.BtnB.wasPressed() && !M5.Mic.isRecording() )
+  {
+    // マイク待機
+    M5.Speaker.end();
+    M5.Mic.begin();
+    avatar.setSpeechText("聞き取り中..");
+    avatar.setExpression(Expression::Neutral);
+    bool ret = M5.Mic.record(rec_data, &recorded_size, record_size, record_samplerate);
+    Serial.printf("rec result: %d\n", ret);
+  }
+
+  if (M5.BtnB.wasReleased() && M5.Mic.isRunning() )
+  {
+    M5.Mic.end();
+    delay(500);
+    M5.Speaker.begin();
+
+    Serial.printf("rec data size: %d\n", recorded_size);
+
+    avatar.setExpression(Expression::Doubt);
+    
+    // test echo
+    // M5.Speaker.playRaw(rec_data, recorded_size, record_samplerate, false, 1, 0);
+
+    // STT
+    String text = STT();
+
+    // reset buffer
+    free(rec_data);
+    rec_data = (typeof(rec_data))heap_caps_malloc(record_size * sizeof(int16_t), MALLOC_CAP_8BIT);
+    memset(rec_data, 0 , record_size * sizeof(int16_t));
+    recorded_size = 0;
+
+    // chat
+    if (text != NULL && text != "null" && text != "") {
+      chatInternal(text, "");
+    } else {
+      avatar.setSpeechText("よく聞き取れませんでした..");
+      avatar.setExpression(Expression::Doubt);
+      tts("よく聞き取れませんでした..", tts_parms2);
+      delay(1000);
+      avatar.setSpeechText("");
+      avatar.setExpression(Expression::Neutral);
+    }
+  }
 
   if (random_time >= 0 && millis() - lastms1 > random_time)
   {
